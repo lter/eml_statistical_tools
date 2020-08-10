@@ -6,13 +6,15 @@
     data, including range checking. 
     
     Users of the R program need to substitute the path to their data file in the GET DATA statement.
+
+    CHANGES Corrected header issue and added structure statement
     
     Things that still need work: 
            Multi-line data records
 	   Titles and other comments with embedded newlines 
     
-    Modified by John Porter, University of Virginia, 2005. 
-    Modified version   Copyright 2005 University of Virginia
+    Modified by John Porter, University of Virginia, 2015. 
+    Modified version   Copyright 2015 University of Virginia
     original version: Copyright: 2003 Board of Reagents, Arizona State University
     
     This material is based upon work supported by the National Science Foundation 
@@ -82,13 +84,15 @@
         <xsl:if test="../access[1]/@system[. = 'https://pasta.lternet.edu']">
 # Metadata Link: https://portal.lternet.edu/nis/metadataviewer?packageid=<xsl:value-of select="../@packageId"/>
         </xsl:if>
-# Stylesheet for metadata conversion into program: John H. Porter, Univ. Virginia, jporter@lternet.edu<xsl:text></xsl:text>      
+# Stylesheet v2.11 for metadata conversion into program: John H. Porter, Univ. Virginia, jporter@virginia.edu<xsl:text></xsl:text>      
         <xsl:if test="dataTable[. !='']">
             <xsl:for-each select="dataTable">
 <!-- List attributes --><xsl:text/> 
 
-infile<xsl:value-of select="position()"/>  &lt;- "<xsl:value-of select="physical/distribution/online/url"></xsl:value-of>"<xsl:text/><xsl:text></xsl:text> 
-infile<xsl:value-of select="position()"/> &lt;- sub("^https","http",infile<xsl:value-of select="position()"/>)<xsl:text></xsl:text> 
+inUrl<xsl:value-of select="position()"/>  &lt;- "<xsl:value-of select="physical/distribution/online/url"></xsl:value-of>"<xsl:text/><xsl:text></xsl:text> 
+infile<xsl:value-of select="position()"/> &lt;- tempfile()<xsl:text></xsl:text>
+try(download.file(inUrl<xsl:value-of select="position()"/>,infile<xsl:value-of select="position()"/>,method="curl"))
+if (is.na(file.size(infile<xsl:value-of select="position()"/>))) download.file(inUrl<xsl:value-of select="position()"/>,infile<xsl:value-of select="position()"/>,method="auto")
 
                   <xsl:choose>                           
                     <xsl:when test="physical/dataFormat/textFormat/complex/textFixed[. !='']">
@@ -101,7 +105,8 @@ infile<xsl:value-of select="position()"/> &lt;- sub("^https","http",infile<xsl:v
                     <xsl:variable name="tableNum">
                         <xsl:value-of select="position()"/>  
                     </xsl:variable>               
-  
+unlink(infile<xsl:value-of select="position()"/>)
+		    
 # Fix any interval or ratio columns mistakenly read in as nominal and nominal columns read as numeric or dates read as strings
                 <xsl:for-each select="attributeList">
                     <xsl:for-each select="attribute">  
@@ -114,6 +119,7 @@ infile<xsl:value-of select="position()"/> &lt;- sub("^https","http",infile<xsl:v
                         <xsl:choose>
                             <xsl:when test="measurementScale/interval|measurementScale/ratio[. != '']">
 if (class(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>)=="factor") dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/> &lt;-as.numeric(levels(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>))[as.integer(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>) ]<xsl:text></xsl:text>               
+if (class(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>)=="character") dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/> &lt;-as.numeric(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>)<xsl:text></xsl:text>               
                             </xsl:when> 
                          <xsl:when test="measurementScale/nominal[. != '']">
 if (class(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>)!="factor") dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>&lt;- as.factor(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>)<xsl:text></xsl:text> 
@@ -127,22 +133,56 @@ if (class(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttri
 tmpDateFormat&lt;-"<xsl:call-template name="getDateFormat"> <xsl:with-param name="text" select="measurementScale/dateTime/formatString" /></xsl:call-template>"<xsl:text></xsl:text>  
                                     <xsl:choose>
                                         <xsl:when test="contains(measurementScale/dateTime/formatString,'Z')">
-dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>&lt;-as.POSIXct(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>,format=tmpDateFormat,tz='UTC')<xsl:text></xsl:text> 
+tmp<xsl:value-of select="$tableNum"/><xsl:value-of select="$cleanAttribName"/>&lt;-as.POSIXct(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>,format=tmpDateFormat,tz='UTC')<xsl:text></xsl:text> 
                                         </xsl:when>
                                         <xsl:when test="contains(measurementScale/dateTime/formatString,'H') or contains(measurementScale/dateTime/formatString,'h')"> 
-dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>&lt;-as.POSIXct(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>,format=tmpDateFormat)<xsl:text></xsl:text> 
+tmp<xsl:value-of select="$tableNum"/><xsl:value-of select="$cleanAttribName"/>&lt;-as.POSIXct(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>,format=tmpDateFormat)<xsl:text></xsl:text> 
                                         </xsl:when>                                            
                                         <xsl:otherwise>
-dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>&lt;-as.Date(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>,format=tmpDateFormat)<xsl:text></xsl:text>                                         
+tmp<xsl:value-of select="$tableNum"/><xsl:value-of select="$cleanAttribName"/>&lt;-as.Date(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>,format=tmpDateFormat)<xsl:text></xsl:text>                                         
                                         </xsl:otherwise>
                                     </xsl:choose>
-rm(tmpDateFormat) <xsl:text></xsl:text> 
+# Keep the new dates only if they all converted correctly
+if(length(tmp<xsl:value-of select="$tableNum"/><xsl:value-of select="$cleanAttribName"/>) == length(tmp<xsl:value-of select="$tableNum"/><xsl:value-of select="$cleanAttribName"/>[!is.na(tmp<xsl:value-of select="$tableNum"/><xsl:value-of select="$cleanAttribName"/>)])){dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/> &lt;- tmp<xsl:value-of select="$tableNum"/><xsl:value-of select="$cleanAttribName"/><xsl:text></xsl:text> } else {print("Date conversion failed for dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>. Please inspect the data and do the date conversion yourself.")}                                                                    
+rm(tmpDateFormat,tmp<xsl:value-of select="$tableNum"/><xsl:value-of select="$cleanAttribName"/>) <xsl:text></xsl:text> 
                                 </xsl:if> 
                             </xsl:when>
                         </xsl:choose>
                     </xsl:for-each>
                 </xsl:for-each>
+                
+# Convert Missing Values to NA for non-dates
+                <xsl:for-each select="attributeList">
+                    <xsl:for-each select="attribute">  
+                        <!--change spaces to . in attribute names -->
+                        <xsl:variable name="cleanAttribName">
+                            <xsl:call-template name="cleanAttribNames">
+                                <xsl:with-param name="text" select="attributeName" />
+                            </xsl:call-template>
+                        </xsl:variable>
+                        <xsl:choose>
+                            <xsl:when test="measurementScale/interval|measurementScale/ratio[. != '']">
+                                <xsl:for-each select="missingValueCode">
+                                    <xsl:if test="code[. != '']">
+dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/> &lt;- ifelse((trimws(as.character(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>))==trimws("<xsl:value-of select="code"/>")),NA,dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>)<xsl:text></xsl:text>               
+suppressWarnings(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/> &lt;- ifelse(!is.na(as.numeric("<xsl:value-of select="code"/>")) &amp; (trimws(as.character(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>))==as.character(as.numeric("<xsl:value-of select="code"/>"))),NA,dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>))<xsl:text></xsl:text>
+                                    </xsl:if> 
+                                </xsl:for-each>
+                            </xsl:when>
+                            <xsl:when test="measurementScale/nominal[. != '']">
+                                <xsl:for-each select="missingValueCode">
+                                    <xsl:if test="code[. != '']">
+dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/> &lt;- as.factor(ifelse((trimws(as.character(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>))==trimws("<xsl:value-of select="code"/>")),NA,as.character(dt<xsl:value-of select="$tableNum"/>$<xsl:value-of select="$cleanAttribName"/>)))<xsl:text></xsl:text>               
+                                    </xsl:if> 
+                                </xsl:for-each> 
+                            </xsl:when>
+                        </xsl:choose>
+                        </xsl:for-each>
+                    </xsl:for-each>
 
+
+# Here is the structure of the input data frame:
+str(dt<xsl:value-of select="$tableNum"/>)<xsl:text></xsl:text>                            
 attach(dt<xsl:value-of select="$tableNum"/>)<xsl:text></xsl:text>                            
 # The analyses below are basic descriptions of the variables. After testing, they should be replaced.                 
 <!--  Generate some default statistical summaries for vectors in the data frame  -->       
@@ -156,13 +196,26 @@ attach(dt<xsl:value-of select="$tableNum"/>)<xsl:text></xsl:text>
 summary(<xsl:value-of select="$cleanAttribName"/>)<xsl:text></xsl:text>               
                     </xsl:for-each>
                 </xsl:for-each> 
+                # Get more details on character variables
+                <xsl:for-each select="attributeList">
+                    <xsl:for-each select="attribute">
+                        <xsl:if test="measurementScale/nominal|measurementScale/ordinal[. != '']">
+                            <xsl:variable name="cleanAttribName">
+                                <xsl:call-template name="cleanAttribNames">
+                                    <xsl:with-param name="text" select="attributeName"/>
+                                </xsl:call-template>
+                            </xsl:variable> 
+summary(as.factor(dt<xsl:value-of select="$tableNum" />$<xsl:value-of select="$cleanAttribName"/>))<xsl:text/>
+                        </xsl:if>
+                    </xsl:for-each>
+                </xsl:for-each>
 detach(dt<xsl:value-of select="$tableNum"/>)               
         </xsl:for-each>
      </xsl:if>  
         </xsl:template>
 
 <xsl:template name="readCSV"> 
- dt<xsl:value-of select="position()"/> &lt;-read.csv(infile<xsl:value-of select="position()"/>,<xsl:text> </xsl:text>
+ dt<xsl:value-of select="position()"/> &lt;-read.csv(infile<xsl:value-of select="position()"/>,header=F<xsl:text> </xsl:text>
     <xsl:if test="physical/dataFormat/textFormat/numHeaderLines[.!='']">
           ,skip=<xsl:value-of select="physical/dataFormat/textFormat/numHeaderLines"/><xsl:text></xsl:text>
     </xsl:if>
@@ -196,6 +249,9 @@ detach(dt<xsl:value-of select="$tableNum"/>)
         </xsl:when>
         <xsl:when test="physical/dataFormat/textFormat/simpleDelimited/fieldDelimiter[.='TAB']">
             ,sep="\t" <xsl:text/>
+        </xsl:when>
+        <xsl:when test="physical/dataFormat/textFormat/simpleDelimited/fieldDelimiter[.='0x2c']">
+            ,sep="," <xsl:text/>
         </xsl:when>
         <xsl:when test="physical/dataFormat/textFormat/simpleDelimited/fieldDelimiter[.='comma']">
             ,sep="," <xsl:text/>
@@ -276,7 +332,7 @@ tmp_format &lt;- c(tmp_format,"<xsl:value-of select="../../physical/dataFormat/t
                     <xsl:when test="(storageType = 'varchar') or (storageType = 'string') or (starts-with(storageType,'char')or (starts-with(storageType,'date')))">
 tmp_format &lt;- c(tmp_format,"A<xsl:value-of select="../../physical/dataFormat/textFormat/complex/textFixed[$nodeNum]/fieldWidth " />")<xsl:text/>
                     </xsl:when>
-                    <xsl:when test="(starts-with(storageType,'int')) or (storageType = 'byte')">
+                    <xsl:when test="(starts-with(storageType,'int') or (storageType = 'byte') or (storageType='float'))">
                         <xsl:choose>
                             <xsl:when test="../../physical/dataFormat/textFormat/complex/textFixed[$nodeNum]/fieldWidth[. > 0]">
 tmp_format &lt;- c(tmp_format,"<xml:text>F</xml:text><xsl:value-of select="../../physical/dataFormat/textFormat/complex/textFixed[$nodeNum]/fieldWidth"></xsl:value-of><xsl:text>")</xsl:text>                                 
@@ -321,125 +377,141 @@ rm(tmp_format, tmp_cols)
         <xsl:param name="text"/>
         <xsl:variable name="a1">
             <xsl:call-template name="string-replace-all">
-                <xsl:with-param name="text" select="$text" />
-                <xsl:with-param name="replace" select="' '" />
-                <xsl:with-param name="by" select="'.'" />
+                <xsl:with-param name="text" select="$text"/>
+                <xsl:with-param name="replace" select="' '"/>
+                <xsl:with-param name="by" select="'.'"/>
             </xsl:call-template>
-            </xsl:variable>
-            <xsl:variable name="a2">
+        </xsl:variable>
+        <xsl:variable name="a2">
             <xsl:call-template name="string-replace-all">
-                <xsl:with-param name="text" select="$a1" />
-                <xsl:with-param name="replace" select="'('" />
-                <xsl:with-param name="by" select="'.paren.'" />
+                <xsl:with-param name="text" select="$a1"/>
+                <xsl:with-param name="replace" select="'('"/>
+                <xsl:with-param name="by" select="'.paren.'"/>
             </xsl:call-template>
-             </xsl:variable>
-            <xsl:variable name="a3">
-                <xsl:call-template name="string-replace-all">
-                    <xsl:with-param name="text" select="$a2" />
-                    <xsl:with-param name="replace" select="')'" />
-                    <xsl:with-param name="by" select="'.paren.'" />
-                </xsl:call-template>
-            </xsl:variable>
+        </xsl:variable>
+        <xsl:variable name="a3">
+            <xsl:call-template name="string-replace-all">
+                <xsl:with-param name="text" select="$a2"/>
+                <xsl:with-param name="replace" select="')'"/>
+                <xsl:with-param name="by" select="'.paren.'"/>
+            </xsl:call-template>
+        </xsl:variable>
         <xsl:variable name="a4">
             <xsl:call-template name="string-replace-all">
-                <xsl:with-param name="text" select="$a3" />
-                <xsl:with-param name="replace" select="'%'" />
-                <xsl:with-param name="by" select="'.percent.'" />
+                <xsl:with-param name="text" select="$a3"/>
+                <xsl:with-param name="replace" select="'%'"/>
+                <xsl:with-param name="by" select="'.percent.'"/>
             </xsl:call-template>
         </xsl:variable>
         <xsl:variable name="a5">
             <xsl:call-template name="string-replace-all">
-                <xsl:with-param name="text" select="$a4" />
-                <xsl:with-param name="replace" select="'/'" />
-                <xsl:with-param name="by" select="'.per.'" />
+                <xsl:with-param name="text" select="$a4"/>
+                <xsl:with-param name="replace" select="'/'"/>
+                <xsl:with-param name="by" select="'.per.'"/>
             </xsl:call-template>
         </xsl:variable>
         <xsl:variable name="a6">
             <xsl:call-template name="string-replace-all">
-                <xsl:with-param name="text" select="$a5" />
-                <xsl:with-param name="replace" select="'+'" />
-                <xsl:with-param name="by" select="'.plus.'" />
+                <xsl:with-param name="text" select="$a5"/>
+                <xsl:with-param name="replace" select="'+'"/>
+                <xsl:with-param name="by" select="'.plus.'"/>
             </xsl:call-template>
         </xsl:variable>
         <xsl:variable name="a7">
             <xsl:call-template name="string-replace-all">
-                <xsl:with-param name="text" select="$a6" />
-                <xsl:with-param name="replace" select="'-'" />
-                <xsl:with-param name="by" select="'.hyphen.'" />
+                <xsl:with-param name="text" select="$a6"/>
+                <xsl:with-param name="replace" select="'-'"/>
+                <xsl:with-param name="by" select="'.hyphen.'"/>
             </xsl:call-template>
         </xsl:variable>
         <xsl:variable name="a8">
             <xsl:call-template name="string-replace-all">
-                <xsl:with-param name="text" select="$a7" />
-                <xsl:with-param name="replace" select="'*'" />
-                <xsl:with-param name="by" select="'.astrix.'" />
+                <xsl:with-param name="text" select="$a7"/>
+                <xsl:with-param name="replace" select="'*'"/>
+                <xsl:with-param name="by" select="'.astrix.'"/>
             </xsl:call-template>
         </xsl:variable>
         <xsl:variable name="a9">
             <xsl:call-template name="string-replace-all">
-                <xsl:with-param name="text" select="$a8" />
-                <xsl:with-param name="replace" select="'^'" />
-                <xsl:with-param name="by" select="'.carat.'" />
+                <xsl:with-param name="text" select="$a8"/>
+                <xsl:with-param name="replace" select="'^'"/>
+                <xsl:with-param name="by" select="'.carat.'"/>
             </xsl:call-template>
         </xsl:variable>
         <xsl:variable name="a10">
             <xsl:call-template name="string-replace-all">
-                <xsl:with-param name="text" select="$a9" />
-                <xsl:with-param name="replace" select="'_'" />
-                <xsl:with-param name="by" select="'.'" />
+                <xsl:with-param name="text" select="$a9"/>
+                <xsl:with-param name="replace" select="'_'"/>
+                <xsl:with-param name="by" select="'_'"/>
             </xsl:call-template>
         </xsl:variable>
         <xsl:variable name="a11">
             <xsl:call-template name="string-replace-all">
-                <xsl:with-param name="text" select="$a10" />
-                <xsl:with-param name="replace" select="'['" />
-                <xsl:with-param name="by" select="'.bracket.'" />
+                <xsl:with-param name="text" select="$a10"/>
+                <xsl:with-param name="replace" select="'['"/>
+                <xsl:with-param name="by" select="'.bracket.'"/>
             </xsl:call-template>
-        </xsl:variable>  
+        </xsl:variable>
         <xsl:variable name="a12">
             <xsl:call-template name="string-replace-all">
-                <xsl:with-param name="text" select="$a11" />
-                <xsl:with-param name="replace" select="']'" />
-                <xsl:with-param name="by" select="'.bracket.'" />
+                <xsl:with-param name="text" select="$a11"/>
+                <xsl:with-param name="replace" select="']'"/>
+                <xsl:with-param name="by" select="'.bracket.'"/>
             </xsl:call-template>
         </xsl:variable>
         <xsl:variable name="a13">
             <xsl:call-template name="string-replace-all">
-                <xsl:with-param name="text" select="$a12" />
-                <xsl:with-param name="replace" select="':'" />
-                <xsl:with-param name="by" select="'.colon.'" />
+                <xsl:with-param name="text" select="$a12"/>
+                <xsl:with-param name="replace" select="':'"/>
+                <xsl:with-param name="by" select="'.colon.'"/>
             </xsl:call-template>
-        </xsl:variable>  
+        </xsl:variable>
         <xsl:variable name="a14">
             <xsl:call-template name="string-replace-all">
-                <xsl:with-param name="text" select="$a13" />
-                <xsl:with-param name="replace" select="';'" />
-                <xsl:with-param name="by" select="'.semicolon.'" />
+                <xsl:with-param name="text" select="$a13"/>
+                <xsl:with-param name="replace" select="';'"/>
+                <xsl:with-param name="by" select="'.semicolon.'"/>
             </xsl:call-template>
-        </xsl:variable>                  
-        <xsl:value-of select="$a14"/>
+        </xsl:variable>
+        <xsl:variable name="a15">
+            <xsl:call-template name="string-add-v-to-leading-numbers">
+                <xsl:with-param name="text" select="$a14"/>
+            </xsl:call-template>
+        </xsl:variable>
+        <xsl:value-of select="$a15"/>
     </xsl:template>
-
-<xsl:template name="string-replace-all">
-    <xsl:param name="text" />
-    <xsl:param name="replace" />
-    <xsl:param name="by" />
-    <xsl:choose>
-      <xsl:when test="contains($text, $replace)">
-        <xsl:value-of select="substring-before($text,$replace)" />
-        <xsl:value-of select="$by" />
-        <xsl:call-template name="string-replace-all">
-          <xsl:with-param name="text"
-          select="substring-after($text,$replace)" />
-          <xsl:with-param name="replace" select="$replace" />
-          <xsl:with-param name="by" select="$by" />
-        </xsl:call-template>
-      </xsl:when>
-      <xsl:otherwise>
-        <xsl:value-of select="$text" />
-      </xsl:otherwise>
-    </xsl:choose>
-</xsl:template>
+    
+    <xsl:template name="string-replace-all">
+        <xsl:param name="text"/>
+        <xsl:param name="replace"/>
+        <xsl:param name="by"/>
+        <xsl:choose>
+            <xsl:when test="contains($text, $replace)">
+                <xsl:value-of select="substring-before($text,$replace)"/>
+                <xsl:value-of select="$by"/>
+                <xsl:call-template name="string-replace-all">
+                    <xsl:with-param name="text" select="substring-after($text,$replace)"/>
+                    <xsl:with-param name="replace" select="$replace"/>
+                    <xsl:with-param name="by" select="$by"/>
+                </xsl:call-template>
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:value-of select="$text"/>
+            </xsl:otherwise>
+        </xsl:choose>
+    </xsl:template>
+    
+    <xsl:template name="string-add-v-to-leading-numbers">
+        <xsl:param name="text"/>
+        <xsl:choose>
+            <xsl:when test="contains('0123456789', substring($text,1,1))">
+                <xsl:value-of select="concat('v_',$text)"/>
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:value-of select="$text"/>
+            </xsl:otherwise>
+        </xsl:choose>
+    </xsl:template>
     
 <xsl:template name="getDateFormat">
     <xsl:param name="text"/>
@@ -562,6 +634,20 @@ rm(tmp_format, tmp_cols)
             <xsl:with-param name="by" select="''" />
         </xsl:call-template>
     </xsl:variable>
-    <xsl:value-of select="$d17"/>
+    <xsl:variable name="d18">
+        <xsl:call-template name="string-replace-all">
+            <xsl:with-param name="text" select="$d17"/>
+            <xsl:with-param name="replace" select="'MON'"/>
+            <xsl:with-param name="by" select="'%b'"/>
+        </xsl:call-template>
+    </xsl:variable>
+    <xsl:variable name="d19">
+        <xsl:call-template name="string-replace-all">
+            <xsl:with-param name="text" select="$d18"/>
+            <xsl:with-param name="replace" select="'mon'"/>
+            <xsl:with-param name="by" select="'%b'"/>
+        </xsl:call-template>
+    </xsl:variable>
+    <xsl:value-of select="$d19"/>
 </xsl:template>
 </xsl:stylesheet>

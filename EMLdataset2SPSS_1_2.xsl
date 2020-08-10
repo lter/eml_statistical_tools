@@ -71,7 +71,10 @@ Comment  Metadata Provider: <xsl:text></xsl:text>
 Comment  Contact: <xsl:text></xsl:text>            
             <xsl:call-template name="partyNameEmail"/> .
         </xsl:for-each>
-        
+        <xsl:if test="../access[1]/@system[. = 'https://pasta.lternet.edu']">
+Comment Metadata Link: https://portal.lternet.edu/nis/metadataviewer?packageid=<xsl:value-of select="../@packageId"/><xsl:text>.</xsl:text>
+        </xsl:if>        
+Comment Stylesheet for metadata conversion into program: John H. Porter, Univ. Virginia, jporter@lternet.edu<xsl:text>;</xsl:text>
         
 Title ' <xsl:value-of select="title"/>' <xsl:text>.</xsl:text>
         <xsl:if test="dataTable[. !='']">
